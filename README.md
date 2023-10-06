@@ -15,9 +15,9 @@ make
 static constexpr clockid_t clock_id;
 
 // If this clock can use TIMER_ABSTIME in clock_nanosleep:
-static constexpr bool can_sleep_until_abstime;
+static constexpr bool can_clock_nanosleep;
 ```
-While the "steadyness" of each clock is hardcoded in the recipe file, if the clock can sleep until an absolute time is determined while generating the header file. Drop-in replacement functions for `std::this_thread::sleep_for` and `std::this_thread::sleep_until` are available in `lyn::this_thread` that sleeps until an absolute time if the clock supports it. Note that `lyn::this_thread::sleep_for` has a `Clock` template parameter that can be used to specify what clock to use for sleeping.
+While the "steadyness" of each clock is hardcoded in the recipe file, if the clock can use `clock_nanosleep` is determined while generating the header file. Drop-in replacement functions for `std::this_thread::sleep_for` and `std::this_thread::sleep_until` are available in `lyn::this_thread` that sleeps until an absolute time if the clock supports `clock_nanosleep`. Note that `lyn::this_thread::sleep_for` has a `Clock` template parameter that can be used to specify what clock to use for sleeping.
 ```c++
 template<class Clock = std::chrono::steady_clock, class Rep, class Period>
 void sleep_for(const std::chrono::duration<Rep, Period>& dur);
@@ -26,7 +26,7 @@ template<class Clock, class Duration>
 void sleep_until(const std::chrono::time_point<Clock, Duration>& tp);
 ```
 
-**Note:** The header file will only function correctly when used on the platform where it was generated. Cross-compilation is not supported. Create the file on each individual platform where you want it.
+**Note:** The header file will only function correctly when used on the platform for which it was generated. Create the file for each individual platform where you want it. If your code is supposed to work on multiple platforms, select clocks that exists on all of them. Do not copy a generated `clocxx.hpp` file generated for one platform to another platform. Time as you know it may come to an end.
 
 ### Example clocks that may be generated:
 ```c++
@@ -53,7 +53,7 @@ struct monotonic_raw_clock :
 All clocks share the same base implementation:
 ```c++
 namespace detail {
-    template<class Clock, bool IsSteady, bool CanClockUseAbsTime, clockid_t CLOCK_ID>
+    template<class Clock, bool IsSteady, bool CanClockNanoSleep, clockid_t CLOCK_ID>
     struct clock_base {
         using duration = std::chrono::nanoseconds;
         using rep = duration::rep;
@@ -62,7 +62,7 @@ namespace detail {
         static constexpr bool is_steady = IsSteady;
 
         static constexpr clockid_t clock_id = CLOCK_ID;
-        static constexpr bool can_sleep_until_abstime = CanClockUseAbsTime;
+        static constexpr bool can_clock_nanosleep = CanClockNanoSleep;
 
         static time_point now() noexcept {
             using namespace std;

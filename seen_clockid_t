@@ -21,3 +21,5 @@ CLOCK_BOOTTIME_ALARM, true, Like CLOCK_BOOTTIME. See timer_create(2) for further
 CLOCK_PROCESS_CPUTIME_ID, true, This is a clock that measures CPU time consumed by this process (i.e., CPU time consumed by all threads in the process). On Linux, this clock is not settable.
 
 CLOCK_THREAD_CPUTIME_ID, true, This is a clock that measures CPU time consumed by this thread. On Linux, this clock is not settable.
+
+CLOCK_SOFTTIME, false, This clock (a QNX Neutrino extension) is active only when the processor isn't in a power-saving mode. For example, an application using a CLOCK_SOFTTIME timer to sleep wouldn't wake up the processor when the application was due to wake up. This will allow the processor to enter a power-saving mode.

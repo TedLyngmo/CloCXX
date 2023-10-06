@@ -12,9 +12,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 // #macro, steady(true/false), description
 struct clockdef {
@@ -40,13 +42,13 @@ enum result { UNSUPP, CLOCK_GETTIME, CLOCK_NANOSLEEP };
 std::ostream& operator<<(std::ostream& os, result r) {
     switch(r) {
     case UNSUPP:
-        os << "UNSUPP";
+        os << "UNSUPPORTED";
         break;
     case CLOCK_GETTIME:
-        os << "CLOCK_GETTIME";
+        os << "Exists - Can clock_nanosleep(): NO";
         break;
     case CLOCK_NANOSLEEP:
-        os << "CLOCK_NANOSLEEP";
+        os << "Exists - Can clock_nanosleep(): YES";
         break;
     }
     return os;
@@ -71,8 +73,8 @@ std::optional<pres> command(std::string command) {
     return pres{::pclose(pip), std::move(buf)};
 }
 
-result test(const clockdef& cd) {
-    std::cout << "Clock under test: " << cd.macro << '\n';
+result test(const clockdef& cd, int width) {
+    std::cout << "Clock under test: " << std::setw(width) << cd.macro;
     auto res = command("make clock_test_driver CLOCK_TO_TEST=" + cd.macro);
     if(not res || (*res).exitstatus) return UNSUPP;
 
@@ -92,25 +94,35 @@ std::string mkname(std::string macro) {
 }
 
 int createit() {
+    auto& seen_file = "seen_clockid_t";
     std::cout << std::boolalpha;
-    std::ifstream cids("seen_clockid_t");
+    std::ifstream cids(seen_file);
     if(not cids) {
-        std::cerr << std::strerror(errno) << '\n';
+        std::cerr << seen_file << ": " << std::strerror(errno) << '\n';
         return 1;
     }
+    std::vector<clockdef> cds(std::istream_iterator<clockdef>(cids), std::istream_iterator<clockdef>{});
+    if(cds.empty()) {
+        std::cerr << seen_file << ": No valid clock definitions read\n";
+        return 1;
+    }
+    int maxwidth = std::max_element(cds.begin(), cds.end(), [](const clockdef& lhs, const clockdef& rhs) {
+        return lhs.macro.size() < rhs.macro.size();
+    })->macro.size();
 
     std::filesystem::copy("base.hpp", "clocxx.hpp", std::filesystem::copy_options::overwrite_existing);
 
-    std::ofstream ofs("clocxx.hpp", std::ios::app);
+    auto& target = "clocxx.hpp";
+    std::ofstream ofs(target, std::ios::app);
     if(not ofs) {
-        std::cerr << std::strerror(errno) << '\n';
+        std::cerr << target << ": " << std::strerror(errno) << '\n';
         return 1;
     }
     ofs << std::boolalpha;
 
-    clockdef cd;
-    while(cids >> cd) {
-        auto rv = test(cd);
+    for(auto& cd : cds) {
+        auto rv = test(cd, maxwidth);
+        std::cout << ": " << rv << '\n';
         if(rv != UNSUPP) {
             auto clname = mkname(cd.macro);
             ofs << "/*\n * " << clname << " - " << cd.description << "\n */\n";

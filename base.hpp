@@ -39,16 +39,16 @@ For more information, please refer to <https://unlicense.org>
 namespace lyn {
 namespace chrono {
     template<class Clock>
-    struct can_sleep_until_abstime {
+    struct can_clock_nanosleep {
         static std::false_type test(...);
 
         template<class C>
-        static auto test(C) -> std::bool_constant<C::can_sleep_until_abstime>;
+        static auto test(C) -> std::bool_constant<C::can_clock_nanosleep>;
 
         static constexpr bool value = decltype(test(std::declval<Clock>()))::value;
     };
     template<class Clock>
-    static constexpr bool can_sleep_until_abstime_v = can_sleep_until_abstime<Clock>::value;
+    static constexpr bool can_clock_nanosleep_v = can_clock_nanosleep<Clock>::value;
 }
 
 namespace this_thread {
@@ -58,7 +58,7 @@ namespace this_thread {
     template<class Clock = std::chrono::steady_clock, class Rep, class Period>
     void sleep_for(const std::chrono::duration<Rep, Period>& dur) {
         if(dur <= dur.zero()) return;
-        if constexpr(chrono::can_sleep_until_abstime_v<Clock>) {
+        if constexpr(chrono::can_clock_nanosleep_v<Clock>) {
             sleep_until(Clock::now() + dur);
         } else {
             auto s = std::chrono::duration_cast<std::chrono::seconds>(dur);
@@ -71,7 +71,7 @@ namespace this_thread {
 
     template<class Clock, class Duration>
     void sleep_until(const std::chrono::time_point<Clock, Duration>& tp) {
-        if constexpr(chrono::can_sleep_until_abstime_v<Clock>) {
+        if constexpr(chrono::can_clock_nanosleep_v<Clock>) {
             auto dur = tp.time_since_epoch();
             auto s = std::chrono::duration_cast<std::chrono::seconds>(dur);
             auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(dur - s);
@@ -87,7 +87,7 @@ namespace this_thread {
 
 namespace chrono {
     namespace detail {
-        template<class Clock, bool IsSteady, bool CanClockUseAbsTime, clockid_t CLOCK_ID>
+        template<class Clock, bool IsSteady, bool CanClockNanoSleep, clockid_t CLOCK_ID>
         struct clock_base {
             using duration = std::chrono::nanoseconds;
             using rep = duration::rep;
@@ -96,7 +96,7 @@ namespace chrono {
             static constexpr bool is_steady = IsSteady;
 
             static constexpr clockid_t clock_id = CLOCK_ID;
-            static constexpr bool can_sleep_until_abstime = CanClockUseAbsTime;
+            static constexpr bool can_clock_nanosleep = CanClockNanoSleep;
 
             static time_point now() noexcept {
                 using namespace std;
