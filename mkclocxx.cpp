@@ -73,9 +73,10 @@ std::optional<pres> command(std::string command) {
     return pres{::pclose(pip), std::move(buf)};
 }
 
-result test(const clockdef& cd, int width) {
+result test(const std::filesystem::path& source_dir, const clockdef& cd, int width) {
     std::cout << "Clock under test: " << std::setw(width) << cd.macro;
-    auto res = command("make clock_test_driver CLOCK_TO_TEST=" + cd.macro);
+    std::string cmd = "make -f '" + source_dir.string() + "/Makefile' clock_test_driver CLOCK_TO_TEST=" + cd.macro;
+    auto res = command(cmd);
     if(not res || (*res).exitstatus) return UNSUPP;
 
     res = command("./clock_test_driver");
@@ -93,8 +94,8 @@ std::string mkname(std::string macro) {
     return macro.substr(6) + "_clock";
 }
 
-int createit() {
-    auto& seen_file = "seen_clockid_t";
+int createit(std::filesystem::path source_dir) {
+    auto seen_file = source_dir / "seen_clockid_t";
     std::cout << std::boolalpha;
     std::ifstream cids(seen_file);
     if(not cids) {
@@ -107,10 +108,10 @@ int createit() {
         return 1;
     }
     int maxwidth = std::max_element(cds.begin(), cds.end(), [](const clockdef& lhs, const clockdef& rhs) {
-        return lhs.macro.size() < rhs.macro.size();
-    })->macro.size();
+                       return lhs.macro.size() < rhs.macro.size();
+                   })->macro.size();
 
-    std::filesystem::copy("base.hpp", "clocxx.hpp", std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy(source_dir / "base.hpp", "clocxx.hpp", std::filesystem::copy_options::overwrite_existing);
 
     auto& target = "clocxx.hpp";
     std::ofstream ofs(target, std::ios::app);
@@ -121,7 +122,7 @@ int createit() {
     ofs << std::boolalpha;
 
     for(auto& cd : cds) {
-        auto rv = test(cd, maxwidth);
+        auto rv = test(source_dir, cd, maxwidth);
         std::cout << ": " << rv << '\n';
         if(rv != UNSUPP) {
             auto clname = mkname(cd.macro);
@@ -134,8 +135,8 @@ int createit() {
     return 0;
 }
 
-int main() {
-    int rv = createit();
+int main(int argc, char* argv[]) {
+    int rv = createit(argc == 2 ? argv[1] : ".");
     if(rv == 0) {
         return system("clang-format -i clocxx.hpp");
     }

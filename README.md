@@ -1,9 +1,18 @@
 # CloCXX
 A header only C++ library with `std::chrono` compatible clocks satisfying the _TrivialClock_ requirement 
 
-#### Building the `clocxx.hpp` header
-```
+#### Building the `clocxx.hpp` header in-source
+```bash
 make
+```
+
+#### Building and installing the `clocxx.hpp` header out-of-source
+
+This will build `clocxx.hpp` and install it in `~/.local/include`:
+```bash
+cmake --install-prefix ~/.local -S . -B build
+cmake --build build
+cmake --install build
 ```
 
 #### About
